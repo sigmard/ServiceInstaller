@@ -17,6 +17,10 @@
 int main(int argc, char *argv[])
 {
 	QApplication a(argc, argv);
+	a.setApplicationName("Sigma Service Installer");
+	a.setApplicationVersion("1.0");
+	a.setOrganizationName("Sigma RD");
+	a.setOrganizationDomain("com.sigmard.serviceinstaller");
 	ServiceInstaller w;
 	w.show();
 	return a.exec();
