@@ -15,6 +15,7 @@
 #define SERVICEINSTALLER_H
 
 #include <QtCore/QUrl>
+#include <QtCore/QDir>
 #include <QtCore/QString>
 
 #include <QtGui/QLabel>
@@ -38,6 +39,8 @@ public:
 	~ServiceInstaller();
 	QString serviceName;
 	QString serviceExecutable;
+	QString dataFiles;
+	QString installPath;
 
 private:
 	Ui::ServiceInstallerClass ui;
