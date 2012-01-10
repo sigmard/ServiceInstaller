@@ -33,7 +33,6 @@ ServiceInstaller::ServiceInstaller(QWidget *parent, Qt::WFlags flags)
 		qApp->quit();
 	}
 
-	ui.path_widget->hide();
 	checkServiceState();
 }
 
@@ -43,6 +42,7 @@ void ServiceInstaller::checkServiceState()
 	if(controller.isInstalled()){
 		ui.installButton->setText("Uninstall Service");
 		ui.messageLabel->setText(QString("\"<b>%1</b>\" is installed.").arg(serviceName));
+		ui.path_widget->hide();
 		ui.serviceStart->hide();
 		connect(ui.installButton, SIGNAL(clicked()), this, SLOT(uninstallService()));
 	}
@@ -51,6 +51,7 @@ void ServiceInstaller::checkServiceState()
 		ui.destinationPath->setText(QString("%1\\SigmaRD\\%2").arg(getenv("ProgramFiles(x86)"), serviceName));
 		ui.installButton->setText("Install Service");
 		ui.messageLabel->setText(QString("Follow instructions to install \"<b>%1</b>\" service.").arg(serviceName));
+		ui.path_widget->show();
 		ui.serviceStart->show();
 		connect(ui.installButton, SIGNAL(clicked()), this, SLOT(installService()));
 	}
@@ -58,8 +59,70 @@ void ServiceInstaller::checkServiceState()
 
 void ServiceInstaller::installService()
 {
-	QString servicePath = serviceExecutable;
-	
+	installPath = ui.destinationPath->text();
+
+	if (!QDir(installPath).exists())
+	{
+		QDir dir;
+		int ret = QMessageBox::information(this, "Directory does not exists", 
+								QString("\"%1\" directory does not exists.\n\nDo you want to create?").arg(installPath),
+                                QMessageBox::Yes | QMessageBox::No);
+
+		if(ret == QMessageBox::Yes)
+		{
+			if(!dir.mkpath(installPath))
+			{
+				QMessageBox::critical(this, "Directory create failed", QString("An error occured while creating following directory: \"%1\".").arg(installPath));
+				return;
+			}
+		}
+		else
+			return;
+	}
+
+	// Copy service executable
+	QFileInfo fi(serviceExecutable);
+	QString servicePath = QDir::cleanPath(QString("%1/%2").arg(QDir::cleanPath(installPath), fi.fileName()));
+
+	bool error = false;
+	if(!QFile::exists(servicePath))
+		if(!QFile::copy(serviceExecutable, servicePath))
+			error = true;
+
+	// Copy Data files if exists
+	if (!dataFiles.isEmpty())
+	{
+		QDir dir(dataFiles);
+		QStringList dataFilesList = dir.entryList(QDir::Files);
+
+		foreach(const QString &file, dataFilesList)
+		{
+			QString destination = QDir::cleanPath(installPath).append("/").append(file);
+			if(!QFile::exists(destination))
+				if(!QFile::copy(QDir::cleanPath(dataFiles).append("/").append(file), destination))
+					error = true;
+		}
+	}
+
+	// Copy installer
+	QStringList installerFiles;
+	installerFiles << QString("%1\\service.ini").arg(QDir::cleanPath(qApp->applicationDirPath())) << qApp->applicationFilePath();
+
+	foreach(const QString &file, installerFiles)
+	{
+		QFileInfo fi(file);
+		QString destination = QDir::cleanPath(installPath).append("/").append(fi.fileName());
+		if(!QFile::exists(destination))
+			if(!QFile::copy(QDir::cleanPath(qApp->applicationDirPath()).append("/").append(fi.fileName()), destination))
+				error = true;
+	}
+
+	if (error) // Any error about file copy
+	{
+		QMessageBox::critical(this, "File Installation Failed", QString("An error occured while installing necessary files for \"%1\".").arg(serviceName));
+		return;
+	}
+
 	// Service Registration Phase
 	if (QtServiceController::install(servicePath, QString(), QString()))
 	{
