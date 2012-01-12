@@ -13,15 +13,45 @@
 
 #include "serviceinstaller.h"
 #include <QtGui/QApplication>
+#include <iostream>
 
 int main(int argc, char *argv[])
 {
-	QApplication a(argc, argv);
-	a.setApplicationName("Sigma Service Installer");
-	a.setApplicationVersion("1.0");
-	a.setOrganizationName("Sigma RD");
-	a.setOrganizationDomain("com.sigmard.serviceinstaller");
-	ServiceInstaller w;
-	w.show();
-	return a.exec();
+	if(argc>=2)
+	{
+		if(QFile::exists("service.ini"))
+		{
+			QSettings settings("service.ini", QSettings::IniFormat);
+			QString serviceName = settings.value("ServiceName", QVariant()).toString();
+			QString serviceExecutable = settings.value("ServiceExecutable", QVariant()).toString();
+			QtServiceController controller(serviceName);
+			if(std::strcmp(argv[1], "--install")==0)
+			{
+				if(!controller.isInstalled())
+					QtServiceController::install(serviceExecutable, QString(), QString());
+				controller.start();
+			}
+			else if(std::strcmp(argv[1], "--uninstall")==0)
+			{
+				if(controller.isInstalled())
+				{
+					if (controller.isRunning())
+						controller.stop();
+					controller.uninstall();
+				}
+			}
+		}
+	}
+	else
+	{
+		QApplication a(argc, argv);
+		a.setApplicationName("Sigma Service Installer");
+		a.setApplicationVersion("1.0");
+		a.setOrganizationName("Sigma RD");
+		a.setOrganizationDomain("com.sigmard.serviceinstaller");
+		ServiceInstaller w;
+		w.show();
+		return a.exec();
+	}
+	return 0;
 }
